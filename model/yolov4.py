@@ -8,51 +8,7 @@
 #
 # ================================================================
 import torch
-# import torch as T
 import torch.nn.functional as F
-# import math
-# import numpy as np
-# from model.fastnms import fastnms
-
-
-# 对坐标解码
-'''
-def decode(conv_output, anchors, stride, num_class):
-    conv_shape       = tf.shape(conv_output)
-    batch_size       = conv_shape[0]
-    output_size      = conv_shape[1]
-    anchor_per_scale = len(anchors)
-    conv_output = tf.reshape(conv_output, (batch_size, output_size, output_size, anchor_per_scale, 5 + num_class))
-    conv_raw_dxdy = conv_output[:, :, :, :, 0:2]
-    conv_raw_dwdh = conv_output[:, :, :, :, 2:4]
-    conv_raw_conf = conv_output[:, :, :, :, 4:5]
-    conv_raw_prob = conv_output[:, :, :, :, 5: ]
-    y = tf.tile(tf.range(output_size, dtype=tf.int32)[:, tf.newaxis], [1, output_size])
-    x = tf.tile(tf.range(output_size, dtype=tf.int32)[tf.newaxis, :], [output_size, 1])
-    xy_grid = tf.concat([x[:, :, tf.newaxis], y[:, :, tf.newaxis]], axis=-1)
-    xy_grid = tf.tile(xy_grid[tf.newaxis, :, :, tf.newaxis, :], [batch_size, 1, 1, anchor_per_scale, 1])
-    xy_grid = tf.cast(xy_grid, tf.float32)
-    pred_xy = (tf.sigmoid(conv_raw_dxdy) + xy_grid) * stride
-    pred_wh = (tf.exp(conv_raw_dwdh) * anchors)
-    pred_xywh = tf.concat([pred_xy, pred_wh], axis=-1)
-    pred_conf = tf.sigmoid(conv_raw_conf)
-    pred_prob = tf.sigmoid(conv_raw_prob)
-
-    pred_xywh = tf.reshape(pred_xywh, (batch_size, -1, 4))  # [-1, -1, 4]
-    pred_conf = tf.reshape(pred_conf, (batch_size, -1, 1))  # [-1, -1, 1]
-    pred_prob = tf.reshape(pred_prob, (batch_size, -1, num_class))  # [-1, -1, 80]
-    return pred_xywh, pred_conf, pred_prob
-
-
-
-class Mish(Layer):
-    def __init__(self):
-        super(Mish, self).__init__()
-    def compute_output_shape(self, input_shape):
-        return input_shape
-    def call(self, x):
-        return x * (K.tanh(K.softplus(x)))
-'''
 
 
 class Mish(torch.nn.Module):

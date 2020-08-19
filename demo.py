@@ -3,8 +3,8 @@
 # ================================================================
 #
 #   Author      : miemie2013
-#   Created date: 2020-06-10 10:20:27
-#   Description : paddlepaddle_yolov4
+#   Created date: 2020-08-19 17:20:11
+#   Description : pytorch_yolov4
 #
 # ================================================================
 from collections import deque

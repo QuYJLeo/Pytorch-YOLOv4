@@ -49,7 +49,10 @@ class Decode(object):
             pimage = self.process_image(np.copy(image))
             batch.append(pimage)
         batch = np.concatenate(batch, axis=0)
+        batch = batch.transpose(0, 3, 1, 2)
+        batch = torch.Tensor(batch)
         outs = self._yolo(batch)
+        outs = [o.cpu().detach().numpy() for o in outs]
 
         # 多线程
         threads = []

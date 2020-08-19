@@ -3,14 +3,12 @@
 # ================================================================
 #
 #   Author      : miemie2013
-#   Created date: 2020-06-10 10:20:27
-#   Description : paddlepaddle_yolov4，复制权重
+#   Created date: 2020-08-19 17:20:11
+#   Description : pytorch_yolov4
 #
 # ================================================================
-import os
 import torch
 from model.yolov4 import YOLOv4
-import paddle.fluid as fluid
 
 
 def load_weights(path):
