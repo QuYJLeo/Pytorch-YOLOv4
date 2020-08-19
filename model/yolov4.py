@@ -247,6 +247,10 @@ class YOLOv4(torch.nn.Module):
         self.conv109 = Conv2dUnit(i512, i1024, 3, stride=1, padding=1, act='leaky')
         self.conv110 = Conv2dUnit(i1024, num_anchors * (num_classes + 5), 1, stride=1, bn=0, act=None)
 
+    def get_layer(self, name):
+        layer = getattr(self, name)
+        return layer
+
     def forward(self, x):
         if torch.cuda.is_available():
             x = x.cuda()

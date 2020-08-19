@@ -34,9 +34,9 @@ use_gpu = True
 if __name__ == '__main__':
     # classes_path = 'data/voc_classes.txt'
     classes_path = 'data/coco_classes.txt'
-    # model_path可以是'yolov4.h5'、'./weights/step00001000.h5'这些。
-    model_path = 'yolov4.h5'
-    # model_path = './weights/step00070000.h5'
+    # model_path可以是'pytorch_yolov4.pt'、'./weights/step00001000.pt'这些。
+    model_path = 'pytorch_yolov4.pt'
+    # model_path = './weights/step00001000.pt'
 
     # input_shape越大，精度会上升，但速度会下降。
     # input_shape = (320, 320)
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     yolo = YOLOv4(num_classes)
     if torch.cuda.is_available():  # 如果有gpu可用，模型（包括了权重weight）存放在gpu显存里
         yolo = yolo.cuda()
-    # yolo.load_state_dict(torch.load(model_path))
+    yolo.load_state_dict(torch.load(model_path))
     yolo.eval()  # 必须调用model.eval()来设置dropout和batch normalization layers在运行推理前，切换到评估模式. 不这样做的化会产生不一致的推理结果.
 
     _decode = Decode(conf_thresh, nms_thresh, input_shape, yolo, all_classes)

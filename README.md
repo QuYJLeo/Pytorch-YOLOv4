@@ -45,7 +45,7 @@ requirements.txt
 链接：https://pan.baidu.com/s/152poRrQW9Na_C8rkhNEh3g
 提取码：09ou
 
-将它放在项目根目录下。然后运行1_pytorch2paddle.py得到一个yolov4文件夹，它也位于根目录下。
+将它放在项目根目录下。然后运行1_pytorch2pytorch.py得到一个pytorch_yolov4.pt文件，它也位于根目录下。
 
 (在AIStudio中操作)
 在AIStudio中创建一个自己的项目，克隆这个仓库的代码到项目里。要求AIStudio的~/work/下直接有本仓库的annotation/、data/文件夹，
