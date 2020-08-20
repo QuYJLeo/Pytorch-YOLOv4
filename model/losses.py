@@ -210,7 +210,6 @@ def yolo_loss(args, num_classes, iou_loss_thresh, anchors):
     prob_loss = sbbox_prob_loss + mbbox_prob_loss + lbbox_prob_loss
     all_loss = ciou_loss + conf_loss + prob_loss
     return [all_loss, ciou_loss, conf_loss, prob_loss]
-    # return all_loss
 
 class YoloLoss(torch.nn.Module):
     def __init__(self, num_classes, iou_loss_thresh, anchors):

@@ -22,6 +22,7 @@ import torch
 
 from config import TrainConfig
 from model.losses import YoloLoss
+from model.yolov3 import YOLOv3
 from model.yolov4 import YOLOv4
 from tools.cocotools import get_classes, catid2clsid, clsid2catid
 from model.decode_np import Decode
@@ -36,6 +37,16 @@ logging.basicConfig(level=logging.INFO, format=FORMAT)
 logger = logging.getLogger(__name__)
 
 
+import platform
+sysstr = platform.system()
+use_cuda = torch.cuda.is_available()
+print(torch.cuda.is_available())
+print(torch.__version__)
+# 禁用cudnn就能解决Windows报错问题。Windows用户如果删掉之后不报CUDNN_STATUS_EXECUTION_FAILED，那就可以删掉。
+if sysstr == 'Windows':
+    torch.backends.cudnn.enabled = False
+
+
 def multi_thread_op(i, samples, decodeImage, context, train_dataset, with_mixup, mixupImage,
                      photometricDistort, randomCrop, randomFlipImage, normalizeBox, padBox, bboxXYXY2XYWH):
     samples[i] = decodeImage(samples[i], context, train_dataset)
@@ -47,11 +58,6 @@ def multi_thread_op(i, samples, decodeImage, context, train_dataset, with_mixup,
     samples[i] = normalizeBox(samples[i], context)
     samples[i] = padBox(samples[i], context)
     samples[i] = bboxXYXY2XYWH(samples[i], context)
-
-
-use_gpu = True
-# use_gpu = False
-use_gpu = torch.cuda.is_available() and use_gpu
 
 if __name__ == '__main__':
     cfg = TrainConfig()
@@ -69,6 +75,7 @@ if __name__ == '__main__':
 
     # 创建模型
     yolo = YOLOv4(num_classes, num_anchors)
+    # yolo = YOLOv3(num_classes, initial_filters=8)
     _decode = Decode(cfg.conf_thresh, cfg.nms_thresh, cfg.input_shape, yolo, class_names)
 
     # 模式。 0-从头训练，1-读取之前的模型继续训练（model_path可以是'yolov4.h5'、'./weights/step00001000.h5'这些。）
@@ -81,7 +88,7 @@ if __name__ == '__main__':
 
         # 冻结，使得需要的显存减少。6G的卡建议这样配置。11G的卡建议不冻结。
         freeze_before = 'conv086'
-        freeze_before = 'conv099'
+        # freeze_before = 'conv099'
         for param in yolo.named_parameters():
             if freeze_before in param[0]:
                 break
@@ -94,7 +101,7 @@ if __name__ == '__main__':
 
     # 建立损失函数
     yolo_loss = YoloLoss(num_classes, cfg.iou_loss_thresh, _anchors)
-    if use_gpu:  # 如果有gpu可用，模型（包括了权重weight）存放在gpu显存里
+    if use_cuda:  # 如果有gpu可用，模型（包括了权重weight）存放在gpu显存里
         yolo = yolo.cuda()
         yolo_loss = yolo_loss.cuda()
 
@@ -187,20 +194,15 @@ if __name__ == '__main__':
 
             # 一些变换
             batch_image = batch_image.transpose(0, 3, 1, 2)
-            # batch_image = batch_image.astype(np.float32)
             batch_image = torch.Tensor(batch_image)
 
-            # batch_label[2] = batch_label[2].astype(np.float32)
-            # batch_label[1] = batch_label[1].astype(np.float32)
-            # batch_label[0] = batch_label[0].astype(np.float32)
             batch_label[2] = torch.Tensor(batch_label[2])
             batch_label[1] = torch.Tensor(batch_label[1])
             batch_label[0] = torch.Tensor(batch_label[0])
 
-            # batch_gt_bbox = batch_gt_bbox.astype(np.float32)
             batch_gt_bbox = torch.Tensor(batch_gt_bbox)
 
-            if use_gpu:
+            if use_cuda:
                 batch_image = batch_image.cuda()
                 batch_label[2] = batch_label[2].cuda()
                 batch_label[1] = batch_label[1].cuda()
@@ -210,7 +212,7 @@ if __name__ == '__main__':
             l_pred, m_pred, s_pred = yolo(batch_image)  # 直接卷积后的输出
             args = [l_pred, m_pred, s_pred, batch_label[2], batch_label[1], batch_label[0], batch_gt_bbox]
             losses = yolo_loss(args)
-            if use_gpu:
+            if use_cuda:
                 all_loss = losses[0].cpu().data.numpy()
                 ciou_loss = losses[1].cpu().data.numpy()
                 conf_loss = losses[2].cpu().data.numpy()
@@ -221,9 +223,9 @@ if __name__ == '__main__':
                 conf_loss = losses[2].data.numpy()
                 prob_loss = losses[3].data.numpy()
             # 更新权重
-            # optimizer.zero_grad()  # 清空上一步的残余更新参数值
-            # train_step_loss.backward()  # 误差反向传播, 计算参数更新值
-            # optimizer.step()  # 将参数更新值施加到 net 的 parameters 上
+            optimizer.zero_grad()  # 清空上一步的残余更新参数值
+            losses[0].backward()  # 误差反向传播, 计算参数更新值
+            optimizer.step()  # 将参数更新值施加到 net 的 parameters 上
 
             # ==================== log ====================
             if iter_id % 20 == 0:
