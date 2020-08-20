@@ -55,7 +55,7 @@ if __name__ == '__main__':
     all_classes = get_classes(classes_path)
     num_classes = len(all_classes)
 
-    yolo = YOLOv4(num_classes)
+    yolo = YOLOv4(num_classes, num_anchors)
     if torch.cuda.is_available():  # 如果有gpu可用，模型（包括了权重weight）存放在gpu显存里
         yolo = yolo.cuda()
     yolo.load_state_dict(torch.load(model_path))

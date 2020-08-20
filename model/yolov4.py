@@ -88,10 +88,10 @@ class SPP(torch.nn.Module):
 
 
 class YOLOv4(torch.nn.Module):
-    def __init__(self, num_classes, initial_filters=32):
+    def __init__(self, num_classes, num_anchors, initial_filters=32):
         super(YOLOv4, self).__init__()
-        num_anchors = 3
         self.num_classes = num_classes
+        self.num_anchors = num_anchors
         i32 = initial_filters
         i64 = i32 * 2
         i128 = i32 * 4

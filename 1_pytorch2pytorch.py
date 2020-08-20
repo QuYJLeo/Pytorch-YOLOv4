@@ -62,9 +62,8 @@ def copy2(idx, cccccccc):
 
 num_classes = 80
 num_anchors = 3
-use_gpu = False
 
-yolo = YOLOv4(num_classes)
+yolo = YOLOv4(num_classes, num_anchors)
 
 
 print('\nCopying...')
