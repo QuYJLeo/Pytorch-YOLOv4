@@ -75,7 +75,6 @@ if __name__ == '__main__':
 
     # 创建模型
     yolo = YOLOv4(num_classes, num_anchors)
-    # yolo = YOLOv3(num_classes, initial_filters=8)
     _decode = Decode(cfg.conf_thresh, cfg.nms_thresh, cfg.input_shape, yolo, class_names)
 
     # 模式。 0-从头训练，1-读取之前的模型继续训练（model_path可以是'yolov4.h5'、'./weights/step00001000.h5'这些。）
@@ -88,7 +87,6 @@ if __name__ == '__main__':
 
         # 冻结，使得需要的显存减少。6G的卡建议这样配置。11G的卡建议不冻结。
         freeze_before = 'conv086'
-        # freeze_before = 'conv099'
         for param in yolo.named_parameters():
             if freeze_before in param[0]:
                 break
