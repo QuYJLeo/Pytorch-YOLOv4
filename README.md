@@ -45,41 +45,11 @@ requirements.txt
 链接：https://pan.baidu.com/s/152poRrQW9Na_C8rkhNEh3g
 提取码：09ou
 
-将它放在项目根目录下。然后运行1_pytorch2pytorch.py得到一个pytorch_yolov4.pt文件，它也位于根目录下。
+将它放在项目根目录下。然后运行1_pytorch2pytorch.py得到一个pytorch_yolov4.pt，它也位于根目录下。
+运行train.py进行训练。通过修改config.py代码来进行更换数据集、更改超参数以及训练参数。
 
-(在AIStudio中操作)
-在AIStudio中创建一个自己的项目，克隆这个仓库的代码到项目里。要求AIStudio的~/work/下直接有本仓库的annotation/、data/文件夹，
-即AIStudio的~/work/就是项目的根目录。
-把windows中的yolov4文件夹打包成zip，通过AIStudio的“创建数据集”将zip包上传。
-创建的项目使用这个数据集和COCO2017数据集，就可以完成预训练模型上传了。
-(为了方便大家使用，我已经上传了预训练模型，本仓库自带的数据集“yolov4_pretrained”就是预训练模型了，在~/data/data40855/目录下)
-进入AIStudio，把上传的预训练模型解压：
-```
-cd ~/w*
-cp ../data/data40855/yolov4.zip ./yolov4.zip
-unzip yolov4.zip
-```
-此外，你还要安装pycocotools依赖、解压COCO2017数据集：
-```
-cd ~
-pip install pycocotools
-cd data
-cd data7122
-unzip ann*.zip
-unzip val*.zip
-unzip tes*.zip
-unzip image_info*.zip
-unzip train*.zip
-cd ~/w*
-```
-
-运行train.py进行训练:
-```
-rm -f train.txt
-nohup python train.py>> train.txt 2>&1 &
-```
-通过修改config.py代码来进行更换数据集、更改超参数以及训练参数。
-训练时默认每5000步计算一次验证集的mAP。或者运行eval.py评估指定模型的mAP。该mAP是val集的结果。
+追求更高的精度，你需要把冻结层的代码删除。但是需要你有一块高显存的显卡。
+训练时默认每5000步计算一次验证集的mAP。
 
 训练时如果发现mAP很稳定了，就停掉，修改学习率为原来的十分之一，接着继续训练，mAP还会再上升。暂时是这样手动操作。
 
@@ -105,49 +75,18 @@ xxx.jpg 48,240,195,371,11 8,12,352,498,14
 https://competitions.codalab.org/competitions/20794#participate
 获得bbox mAP.
 
-上述yolov4在test集的mAP是（input_shape = (608, 608)，分数阈值=0.001，nms阈值=0.45的情况下）
+上述pytorch_yolov4.pt在test集的mAP是（input_shape = (608, 608)，分数阈值=0.001，nms阈值=0.45的情况下）
 ```
-Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.411
-Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.640
-Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.444
-Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.235
-Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.448
-Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.516
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.322
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.506
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.533
-Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.340
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.579
-Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.668
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.xxx
 ```
 
 该mAP是test集的结果，也就是大部分检测算法论文的标准指标。有点谜，根据我之前的经验test集的mAP和val集的mAP应该是差不多的。原因已经找到，由于原版YOLO v4使用coco trainval2014进行训练，训练样本中包含部分评估样本，若使用val集会导致精度虚高。
 
 ## 预测
-运行demo.py。
+运行demo.py。运行demo_fast.py。
 
-## 导出
-```
-python export_model.py
-```
-关于导出的参数请看export_model.py中的注释。导出后的模型默认存放在inference_model目录下，带有一个配置文件infer_cfg.yml。
-
-用导出后的模型预测图片：
-```
-python deploy_infer.py --model_dir inference_model --image_dir images/test/
-```
-
-用导出后的模型预测视频：
-```
-python deploy_infer.py --model_dir inference_model --video_file D://PycharmProjects/moviepy/dddd.mp4
-```
-
-用导出后的模型播放视频：（按esc键停止播放）
-```
-python deploy_infer.py --model_dir inference_model --play_video D://PycharmProjects/moviepy/dddd.mp4
-```
-
-
+## 预测视频
+运行demo_video.py。（按esc键停止播放）
 
 ## 传送门
 cv算法交流q群：645796480
