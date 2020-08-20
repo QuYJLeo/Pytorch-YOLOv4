@@ -186,17 +186,17 @@ if __name__ == '__main__':
 
             # 一些变换
             batch_image = batch_image.transpose(0, 3, 1, 2)
-            batch_image = batch_image.astype(np.float32)
+            # batch_image = batch_image.astype(np.float32)
             batch_image = torch.Tensor(batch_image)
 
-            batch_label[2] = batch_label[2].astype(np.float32)
-            batch_label[1] = batch_label[1].astype(np.float32)
-            batch_label[0] = batch_label[0].astype(np.float32)
+            # batch_label[2] = batch_label[2].astype(np.float32)
+            # batch_label[1] = batch_label[1].astype(np.float32)
+            # batch_label[0] = batch_label[0].astype(np.float32)
             batch_label[2] = torch.Tensor(batch_label[2])
             batch_label[1] = torch.Tensor(batch_label[1])
             batch_label[0] = torch.Tensor(batch_label[0])
 
-            batch_gt_bbox = batch_gt_bbox.astype(np.float32)
+            # batch_gt_bbox = batch_gt_bbox.astype(np.float32)
             batch_gt_bbox = torch.Tensor(batch_gt_bbox)
 
             if use_gpu:
@@ -208,27 +208,27 @@ if __name__ == '__main__':
 
             l_pred, m_pred, s_pred = yolo(batch_image)  # 直接卷积后的输出
             args = [l_pred, m_pred, s_pred, batch_label[2], batch_label[1], batch_label[0], batch_gt_bbox]
-            losses = yolo_loss(args)
-            if use_gpu:
-                all_loss = losses[0].cpu().data.numpy()
-                ciou_loss = losses[1].cpu().data.numpy()
-                conf_loss = losses[2].cpu().data.numpy()
-                prob_loss = losses[3].cpu().data.numpy()
-            else:
-                all_loss = losses[0].data.numpy()
-                ciou_loss = losses[1].data.numpy()
-                conf_loss = losses[2].data.numpy()
-                prob_loss = losses[3].data.numpy()
+            train_step_loss = yolo_loss(args)
+            # if use_gpu:
+            #     all_loss = losses[0].cpu().data.numpy()
+            #     ciou_loss = losses[1].cpu().data.numpy()
+            #     conf_loss = losses[2].cpu().data.numpy()
+            #     prob_loss = losses[3].cpu().data.numpy()
+            # else:
+            #     all_loss = losses[0].data.numpy()
+            #     ciou_loss = losses[1].data.numpy()
+            #     conf_loss = losses[2].data.numpy()
+            #     prob_loss = losses[3].data.numpy()
             # 更新权重
             # optimizer.zero_grad()  # 清空上一步的残余更新参数值
-            # losses[0].backward()  # 误差反向传播, 计算参数更新值
+            # train_step_loss.backward()  # 误差反向传播, 计算参数更新值
             # optimizer.step()  # 将参数更新值施加到 net 的 parameters 上
 
             # ==================== log ====================
-            if iter_id % 20 == 0:
-                strs = 'Train iter: {}, all_loss: {:.6f}, ciou_loss: {:.6f}, conf_loss: {:.6f}, prob_loss: {:.6f}, eta: {}'.format(
-                    iter_id, all_loss, ciou_loss, conf_loss, prob_loss, eta)
-                logger.info(strs)
+            # if iter_id % 20 == 0:
+            #     strs = 'Train iter: {}, all_loss: {:.6f}, ciou_loss: {:.6f}, conf_loss: {:.6f}, prob_loss: {:.6f}, eta: {}'.format(
+            #         iter_id, all_loss, ciou_loss, conf_loss, prob_loss, eta)
+            #     logger.info(strs)
 
             # ==================== save ====================
             if iter_id % cfg.save_iter == 0:

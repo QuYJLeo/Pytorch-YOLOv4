@@ -78,7 +78,7 @@ def bbox_ciou(boxes1, boxes2):
 def bbox_iou(boxes1, boxes2):
     '''
     预测框          boxes1 (?, grid_h, grid_w, 3,   1, 4)，神经网络的输出(tx, ty, tw, th)经过了后处理求得的(bx, by, bw, bh)
-    图片中所有的gt  boxes2 (?,      1,      1, 1, 150, 4)
+    图片中所有的gt  boxes2 (?,      1,      1, 1,  70, 4)
     '''
     boxes1_area = boxes1[..., 2] * boxes1[..., 3]  # 所有格子的3个预测框的面积
     boxes2_area = boxes2[..., 2] * boxes2[..., 3]  # 所有ground truth的面积
@@ -89,16 +89,16 @@ def bbox_iou(boxes1, boxes2):
     boxes2 = T.cat((boxes2[..., :2] - boxes2[..., 2:] * 0.5,
                     boxes2[..., :2] + boxes2[..., 2:] * 0.5), dim=-1)
 
-    # 所有格子的3个预测框 分别 和  150个ground truth  计算iou。 所以left_up和right_down的shape = (?, grid_h, grid_w, 3, 150, 2)
+    # 所有格子的3个预测框 分别 和   70个ground truth  计算iou。 所以left_up和right_down的shape = (?, grid_h, grid_w, 3, 70, 2)
     left_up = T.max(boxes1[..., :2], boxes2[..., :2])  # 相交矩形的左上角坐标
     right_down = T.min(boxes1[..., 2:], boxes2[..., 2:])  # 相交矩形的右下角坐标
 
-    # 相交矩形的w和h，是负数时取0     (?, grid_h, grid_w, 3, 150, 2)
+    # 相交矩形的w和h，是负数时取0     (?, grid_h, grid_w, 3, 70, 2)
     inter_section = right_down - left_up
     inter_section = T.where(inter_section < 0.0, inter_section*0, inter_section)
-    inter_area = inter_section[..., 0] * inter_section[..., 1]  # 相交矩形的面积            (?, grid_h, grid_w, 3, 150)
-    union_area = boxes1_area + boxes2_area - inter_area  # union_area      (?, grid_h, grid_w, 3, 150)
-    iou = 1.0 * inter_area / union_area  # iou                             (?, grid_h, grid_w, 3, 150)
+    inter_area = inter_section[..., 0] * inter_section[..., 1]  # 相交矩形的面积            (?, grid_h, grid_w, 3, 70)
+    union_area = boxes1_area + boxes2_area - inter_area  # union_area      (?, grid_h, grid_w, 3, 70)
+    iou = 1.0 * inter_area / union_area  # iou                             (?, grid_h, grid_w, 3, 70)
     return iou
 
 def loss_layer(conv, pred, label, bboxes, stride, num_class, iou_loss_thresh, alpha=0.5, gamma=2):
@@ -129,31 +129,19 @@ def loss_layer(conv, pred, label, bboxes, stride, num_class, iou_loss_thresh, al
     prob_mask = respond_bbox.repeat((1, 1, 1, 1, num_class))
     prob_loss = prob_mask * (prob_pos_loss + prob_neg_loss)
 
-    # 3. xxxiou_loss和类别loss比较简单。重要的是conf_loss，是一个focal_loss
-    # 分两步：第一步是确定 grid_h * grid_w * 3 个预测框 哪些作为反例；第二步是计算focal_loss。
+    # 3. xxxiou_loss和类别loss比较简单。重要的是conf_loss，是一个二值交叉熵损失
+    # 分两步：第一步是确定 grid_h * grid_w * 3 个预测框 哪些作为反例；第二步是计算二值交叉熵损失。
     expand_pred_xywh = pred_xywh[:, :, :, :, np.newaxis, :]  # 扩展为(?, grid_h, grid_w, 3,   1, 4)
-    expand_bboxes = bboxes[:, np.newaxis, np.newaxis, np.newaxis, :, :]  # 扩展为(?,      1,      1, 1, 150, 4)
-    iou = bbox_iou(expand_pred_xywh, expand_bboxes)  # 所有格子的3个预测框 分别 和  150个ground truth  计算iou。   (?, grid_h, grid_w, 3, 150)
-    max_iou, max_iou_indices = T.max(iou, dim=-1, keepdim=True)        # 与150个ground truth的iou中，保留最大那个iou。  (?, grid_h, grid_w, 3, 1)
+    expand_bboxes = bboxes[:, np.newaxis, np.newaxis, np.newaxis, :, :]  # 扩展为(?,      1,      1, 1, 70, 4)
+    iou = bbox_iou(expand_pred_xywh, expand_bboxes)  # 所有格子的3个预测框 分别 和  70个ground truth  计算iou。   (?, grid_h, grid_w, 3, 70)
+    max_iou, max_iou_indices = T.max(iou, dim=-1, keepdim=True)        # 与70个ground truth的iou中，保留最大那个iou。  (?, grid_h, grid_w, 3, 1)
 
     # respond_bgd代表  这个分支输出的 grid_h * grid_w * 3 个预测框是否是 反例（背景）
-    # label有物体，respond_bgd是0。 没物体的话：如果和某个gt(共150个)的iou超过iou_loss_thresh，respond_bgd是0；如果和所有gt(最多150个)的iou都小于iou_loss_thresh，respond_bgd是1。
-    # respond_bgd是0代表有物体，不是反例；  权重respond_bgd是1代表没有物体，是反例。
+    # label有物体，respond_bgd是0。 没物体的话：如果和某个gt(共70个)的iou超过iou_loss_thresh，respond_bgd是0；如果和所有gt(最多70个)的iou都小于iou_loss_thresh，respond_bgd是1。
+    # respond_bgd是0代表有物体，不是反例（或者是忽略框）；  权重respond_bgd是1代表没有物体，是反例。
     # 有趣的是，模型训练时由于不断更新，对于同一张图片，两次预测的 grid_h * grid_w * 3 个预测框（对于这个分支输出）  是不同的。用的是这些预测框来与gt计算iou来确定哪些预测框是反例。
     # 而不是用固定大小（不固定位置）的先验框。
     respond_bgd = (1.0 - respond_bbox) * (max_iou < iou_loss_thresh).float()
-
-    # focal_loss介绍： https://www.cnblogs.com/king-lps/p/9497836.html  公式简单，但是效果出群！alpha解决不平衡问题，gamma解决困难样本问题。
-    # 为什么正样本数量少，给的权重alpha比负样本的权重(1-alpha)还小？ 请看 https://blog.csdn.net/weixin_44638957/article/details/100733971
-
-    # YunYang1994的focal_loss，只带gamma解决困难样本问题。没有带上alpha。
-    # pos_loss = respond_bbox * (0 - T.log(pred_conf + 1e-9)) * T.pow(1 - pred_conf, gamma)
-    # neg_loss = respond_bgd  * (0 - T.log(1 - pred_conf + 1e-9)) * T.pow(pred_conf, gamma)
-
-    # RetinaNet的focal_loss，多带上alpha解决不平衡问题。
-    # 经过试验发现alpha取>0.5的值时mAP会提高，但误判（False Predictions）会增加；alpha取<0.5的值时mAP会降低，误判会降低。
-    # pos_loss = respond_bbox * (0 - T.log(pred_conf + 1e-9)) * T.pow(1 - pred_conf, gamma) * alpha
-    # neg_loss = respond_bgd  * (0 - T.log(1 - pred_conf + 1e-9)) * T.pow(pred_conf, gamma) * (1 - alpha)
 
     # 二值交叉熵损失
     pos_loss = respond_bbox * (0 - T.log(pred_conf + 1e-9))
@@ -161,78 +149,45 @@ def loss_layer(conv, pred, label, bboxes, stride, num_class, iou_loss_thresh, al
 
     conf_loss = pos_loss + neg_loss
     # 回顾respond_bgd，某个预测框和某个gt的iou超过iou_loss_thresh，不被当作是反例。在参与“预测的置信位 和 真实置信位 的 二值交叉熵”时，这个框也可能不是正例(label里没标这个框是1的话)。这个框有可能不参与置信度loss的计算。
-    # 这种框一般是gt框附近的框，或者是gt框所在格子的另外两个框。它既不是正例也不是反例不参与置信度loss的计算，其实对yolov3算法是有好处的。（论文里称之为ignore）
-    # 它如果作为反例参与置信度loss的计算，会降低yolov3的精度。
-    # 它如果作为正例参与置信度loss的计算，可能会导致预测的框不准确（因为可能物体的中心都预测不准）。
+    # 这种框一般是gt框附近的框，或者是gt框所在格子的另外两个框。它既不是正例也不是反例不参与置信度loss的计算。（论文里称之为ignore）
 
     ciou_loss = ciou_loss.sum((1, 2, 3, 4)).mean()    # 每个样本单独计算自己的ciou_loss，再求平均值
     conf_loss = conf_loss.sum((1, 2, 3, 4)).mean()    # 每个样本单独计算自己的conf_loss，再求平均值
     prob_loss = prob_loss.sum((1, 2, 3, 4)).mean()    # 每个样本单独计算自己的prob_loss，再求平均值
 
-    return ciou_loss + conf_loss + prob_loss
-
-def get_grid_offset(grid_n):
-    grid_offset = np.arange(grid_n)
-    grid_x_offset = np.tile(grid_offset, (grid_n, 1))
-    grid_y_offset = np.copy(grid_x_offset)
-    grid_y_offset = grid_y_offset.transpose(1, 0)
-    grid_x_offset = np.reshape(grid_x_offset, (grid_n, grid_n, 1, 1))
-    grid_x_offset = np.tile(grid_x_offset, (1, 1, 3, 1))
-    grid_y_offset = np.reshape(grid_y_offset, (grid_n, grid_n, 1, 1))
-    grid_y_offset = np.tile(grid_y_offset, (1, 1, 3, 1))
-    grid_offset = np.concatenate([grid_x_offset, grid_y_offset], axis=-1)
-    return grid_offset
-
-def decode(conv_output, anchors, stride):
-    conv_shape = conv_output.shape
-    output_size = conv_shape[1]
-
-    conv_raw_dxdy = conv_output[:, :, :, :, 0:2]
-    conv_raw_dwdh = conv_output[:, :, :, :, 2:4]
-    conv_raw_conf = conv_output[:, :, :, :, 4:5]
-    conv_raw_prob = conv_output[:, :, :, :, 5: ]
-
-    grid_offset = get_grid_offset(output_size)
-
-    # pytorch支持张量Tensor和标量相加（相乘），而不支持张量Tensor和同shape或不同shape的ndarray相加（相乘）。
-    # pytorch支持张量Tensor和同shape或不同shape的Tensor相加（相乘）。
-    grid_offset = torch.Tensor(grid_offset.astype(np.float32))
-    anchor_t = torch.Tensor(np.copy(anchors).astype(np.float32))
-    if T.cuda.is_available():
-        grid_offset = grid_offset.cuda()
-        anchor_t = anchor_t.cuda()
-
-    # T.sigmoid(conv_raw_dxdy)的shape是(N, n, n, 3, 2)，grid_offset的shape是(n, n, 3, 2)。属于不同shape相加
-    pred_xy = (T.sigmoid(conv_raw_dxdy) + grid_offset) * stride
-    pred_wh = (T.exp(conv_raw_dwdh) * anchor_t) * stride
-    pred_xywh = T.cat((pred_xy, pred_wh), dim=-1)
-
-    pred_conf = T.sigmoid(conv_raw_conf)
-    pred_prob = T.sigmoid(conv_raw_prob)
-    return T.cat((pred_xywh, pred_conf, pred_prob), dim=-1)
-
+    return ciou_loss, conf_loss, prob_loss
 
 def decode(conv_output, anchors, stride, num_class):
-    conv_shape       = tf.shape(conv_output)
+    conv_shape       = conv_output.shape
     batch_size       = conv_shape[0]
     output_size      = conv_shape[1]
     anchor_per_scale = len(anchors)
-    conv_output = tf.reshape(conv_output, (batch_size, output_size, output_size, anchor_per_scale, 5 + num_class))
+    conv_output = conv_output.reshape((batch_size, output_size, output_size, anchor_per_scale, 5 + num_class))
     conv_raw_dxdy = conv_output[:, :, :, :, 0:2]
     conv_raw_dwdh = conv_output[:, :, :, :, 2:4]
     conv_raw_conf = conv_output[:, :, :, :, 4:5]
     conv_raw_prob = conv_output[:, :, :, :, 5: ]
-    y = tf.tile(tf.range(output_size, dtype=tf.int32)[:, tf.newaxis], [1, output_size])
-    x = tf.tile(tf.range(output_size, dtype=tf.int32)[tf.newaxis, :], [output_size, 1])
-    xy_grid = tf.concat([x[:, :, tf.newaxis], y[:, :, tf.newaxis]], axis=-1)
-    xy_grid = tf.tile(xy_grid[tf.newaxis, :, :, tf.newaxis, :], [batch_size, 1, 1, anchor_per_scale, 1])
-    xy_grid = tf.cast(xy_grid, tf.float32)
-    pred_xy = (tf.sigmoid(conv_raw_dxdy) + xy_grid) * stride
-    pred_wh = (tf.exp(conv_raw_dwdh) * anchors)
-    pred_xywh = tf.concat([pred_xy, pred_wh], axis=-1)
-    pred_conf = tf.sigmoid(conv_raw_conf)
-    pred_prob = tf.sigmoid(conv_raw_prob)
-    return tf.concat([pred_xywh, pred_conf, pred_prob], axis=-1)
+
+    rows = T.arange(0, output_size, dtype=T.float32)
+    cols = T.arange(0, output_size, dtype=T.float32)
+    if torch.cuda.is_available():
+        rows = rows.cuda()
+        cols = cols.cuda()
+    rows = rows[np.newaxis, np.newaxis, :, np.newaxis, np.newaxis].repeat((1, output_size, 1, 1, 1))
+    cols = cols[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis].repeat((1, 1, output_size, 1, 1))
+    offset = T.cat([rows, cols], dim=-1)
+    offset = offset.repeat((batch_size, 1, 1, anchor_per_scale, 1))
+    pred_xy = (T.sigmoid(conv_raw_dxdy) + offset) * stride
+
+    _anchors = T.Tensor(anchors)
+    if torch.cuda.is_available():
+        _anchors = _anchors.cuda()
+    pred_wh = (T.exp(conv_raw_dwdh) * _anchors)
+
+    pred_xywh = T.cat([pred_xy, pred_wh], dim=-1)
+    pred_conf = T.sigmoid(conv_raw_conf)
+    pred_prob = T.sigmoid(conv_raw_prob)
+    return T.cat([pred_xywh, pred_conf, pred_prob], dim=-1)
 
 
 def yolo_loss(args, num_classes, iou_loss_thresh, anchors):
@@ -253,7 +208,9 @@ def yolo_loss(args, num_classes, iou_loss_thresh, anchors):
     ciou_loss = sbbox_ciou_loss + mbbox_ciou_loss + lbbox_ciou_loss
     conf_loss = sbbox_conf_loss + mbbox_conf_loss + lbbox_conf_loss
     prob_loss = sbbox_prob_loss + mbbox_prob_loss + lbbox_prob_loss
-    return [ciou_loss, conf_loss, prob_loss]
+    all_loss = ciou_loss + conf_loss + prob_loss
+    # return [all_loss, ciou_loss, conf_loss, prob_loss]
+    return all_loss
 
 class YoloLoss(torch.nn.Module):
     def __init__(self, num_classes, iou_loss_thresh, anchors):
@@ -263,8 +220,7 @@ class YoloLoss(torch.nn.Module):
         self.anchors = anchors
 
     def forward(self, args):
-        return [args[0].mean(), args[0].mean(), args[1].mean(), args[2].mean()]
-        # return yolo_loss(args, self.num_classes, self.iou_loss_thresh, self.anchors)
+        return yolo_loss(args, self.num_classes, self.iou_loss_thresh, self.anchors)
 
 
 
