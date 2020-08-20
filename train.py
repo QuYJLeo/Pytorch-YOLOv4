@@ -17,6 +17,7 @@ import datetime
 import random
 import copy
 import numpy as np
+from collections import OrderedDict
 import os
 import torch
 
@@ -80,7 +81,20 @@ if __name__ == '__main__':
     # 模式。 0-从头训练，1-读取之前的模型继续训练（model_path可以是'yolov4.h5'、'./weights/step00001000.h5'这些。）
     pattern = cfg.pattern
     if pattern == 1:
-        yolo.load_state_dict(torch.load(cfg.model_path))
+        # 加载参数, 跳过形状不匹配的。
+        yolo_state_dict = yolo.state_dict()
+        pretrained_dict = torch.load(cfg.model_path)
+        new_state_dict = OrderedDict()
+        for k, v in pretrained_dict.items():
+            if k in yolo_state_dict:
+                shape_1 = yolo_state_dict[k].shape
+                shape_2 = pretrained_dict[k].shape
+                if shape_1 == shape_2:
+                    new_state_dict[k] = v
+        yolo_state_dict.update(new_state_dict)
+        yolo.load_state_dict(yolo_state_dict)
+
+
         strs = cfg.model_path.split('step')
         if len(strs) == 2:
             iter_id = int(strs[1][:8])
