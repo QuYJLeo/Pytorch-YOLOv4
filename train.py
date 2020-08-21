@@ -91,6 +91,8 @@ if __name__ == '__main__':
                 shape_2 = pretrained_dict[k].shape
                 if shape_1 == shape_2:
                     new_state_dict[k] = v
+                else:
+                    print('shape mismatch in %s. shape_1=%s, while shape_2=%s.' % (k, shape_1, shape_2))
         yolo_state_dict.update(new_state_dict)
         yolo.load_state_dict(yolo_state_dict)
 
