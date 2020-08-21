@@ -33,7 +33,7 @@ if __name__ == '__main__':
     # 验证时的分数阈值和nms_iou阈值
     conf_thresh = 0.001
     nms_thresh = 0.45
-    # 是否画出验证集图片
+    # 是否画出test集图片
     draw_image = False
     # 测试时的批大小
     test_batch_size = 2
